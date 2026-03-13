@@ -9,7 +9,7 @@ use tracing::instrument;
 #[derive(Deserialize, Debug, Default)]
 pub struct ExchangeTokenResponse {
     pub access_token: String,
-    pub refresh_token: Option<String>,
+    pub refresh_token: String,
     pub id_token: String,
     pub expires_in: i64,
     pub refresh_token_expires_in: i64,

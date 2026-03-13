@@ -11,7 +11,7 @@ use crate::{
 #[injectable]
 pub struct AuthService {
     user_service: Arc<UserService>,
-    google_auth: Arc<GoogleAuthService>,
+    gauth: Arc<GoogleAuthService>,
     config: Arc<Config>,
 }
 
@@ -19,11 +19,9 @@ impl AuthService {
     /// # Errors
     /// Returns an error if some database operation fails.
     pub async fn authenticate_with_google(&self, code: &str) -> Result<String> {
-        let user_info = self.google_auth.get_user_by_code(code).await?;
-        let user = self
-            .user_service
-            .get_or_create_user(&user_info.user, &user_info.refresh_token)
-            .await?;
+        let google_user = self.gauth.get_user_by_code(code).await?;
+        self.gauth.check_scope_validity(&google_user.exchange)?;
+        let user = self.user_service.get_or_create_user(google_user).await?;
         let token = self.authenticate(&user)?;
         Ok(token)
     }
