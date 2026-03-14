@@ -52,6 +52,28 @@ impl KnowledgeBaseService {
         }
     }
 
+    pub async fn get_user_knowledge_base_by_id(
+        &self,
+        id: Uuid,
+        owner_id: Uuid,
+    ) -> Result<KnowledgeBase> {
+        let user = self.user_service.get_user_by_id(&owner_id).await?;
+        Ok(KnowledgeBases::find_by_pid_and_owner(&self.db, id, user.id).await?)
+    }
+
+    pub async fn get_aggregated_knowledge_base(&self, owner_id: Uuid) -> Result<String> {
+        let user = self.user_service.get_user_by_id(&owner_id).await?;
+
+        let aggregated_content = KnowledgeBases::find_by_owner_id(&self.db, user.id)
+            .await?
+            .into_iter()
+            .map(|kb| format!("Label:\n{}\n\nContent:\n{}", kb.label, kb.content))
+            .collect::<Vec<_>>()
+            .join("\n\n");
+
+        Ok(aggregated_content)
+    }
+
     fn normalize_source(source: &KnowledgeBaseSource) -> String {
         match source {
             KnowledgeBaseSource::Upload => "upload".to_string(),

@@ -34,8 +34,21 @@ async fn add_knowledge_base(
     format::json(KnowledgeBaseResponse::new(&knowledge_base))
 }
 
+#[debug_handler]
+async fn get_knowledge_base(
+    auth: auth::JWT,
+    State(ctx): State<AppContext>,
+    Path(id): Path<Uuid>,
+) -> Result<Response> {
+    let service = utils::app::get::<KnowledgeBaseService>(&ctx)?;
+    let pid: Uuid = utils::app::get_pid(&auth)?;
+    let knowledge_base = service.get_user_knowledge_base_by_id(id, pid).await?;
+    format::json(KnowledgeBaseResponse::new(&knowledge_base))
+}
+
 pub fn routes() -> Routes {
     Routes::new()
         .prefix("knowledge-base")
+        .add("/{id}", get(get_knowledge_base))
         .add("add", post(add_knowledge_base))
 }

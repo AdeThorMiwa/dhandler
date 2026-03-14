@@ -1,7 +1,7 @@
 use crate::models::_entities::knowledge_bases;
 
 pub use super::_entities::knowledge_bases::{ActiveModel, Entity, Model};
-use loco_rs::model::ModelResult;
+use loco_rs::model::{ModelError, ModelResult};
 use sea_orm::entity::prelude::*;
 pub type KnowledgeBases = Entity;
 pub type KnowledgeBase = Model;
@@ -67,6 +67,20 @@ impl Entity {
             .await?;
 
         Ok(knowledge_bases)
+    }
+
+    pub async fn find_by_pid_and_owner(
+        db: &DatabaseConnection,
+        pid: Uuid,
+        owner_id: i32,
+    ) -> ModelResult<KnowledgeBase> {
+        let knowledge_bases = Entity::find()
+            .filter(knowledge_bases::Column::Pid.eq(pid))
+            .filter(knowledge_bases::Column::OwnerId.eq(owner_id))
+            .one(db)
+            .await?;
+
+        knowledge_bases.ok_or_else(|| ModelError::EntityNotFound)
     }
 
     pub async fn find_by_source(
