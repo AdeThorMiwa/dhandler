@@ -48,7 +48,9 @@ impl Hooks for App {
     }
 
     fn routes(_ctx: &AppContext) -> AppRoutes {
-        AppRoutes::with_default_routes().add_route(controllers::auth::routes())
+        AppRoutes::with_default_routes()
+            .add_route(controllers::auth::routes())
+            .add_route(controllers::knowledge_base::routes())
     }
     async fn connect_workers(_ctx: &AppContext, _queue: &Queue) -> Result<()> {
         Ok(())

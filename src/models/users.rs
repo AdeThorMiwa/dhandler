@@ -10,6 +10,7 @@ use serde::Deserialize;
 use validator::Validate;
 
 pub type Users = Entity;
+pub type User = Model;
 
 #[derive(Debug, Validate, Deserialize)]
 pub struct Validator {
@@ -45,7 +46,7 @@ impl ActiveModelBehavior for ActiveModel {
 }
 
 // implement your read-oriented logic here
-impl Model {}
+impl User {}
 
 // implement your write-oriented logic here
 impl ActiveModel {}
@@ -60,7 +61,7 @@ impl Entity {
     pub async fn create<C: ConnectionTrait>(
         db: &C,
         payload: CreateUserPayload,
-    ) -> ModelResult<Model> {
+    ) -> ModelResult<User> {
         let user = users::ActiveModel {
             pid: ActiveValue::set(Uuid::new_v4()),
             email: ActiveValue::set(payload.email.clone()),
@@ -79,7 +80,7 @@ impl Entity {
     /// # Errors
     ///
     /// When could not find user by the given email or DB query error
-    pub async fn find_by_email(db: &DatabaseConnection, email: &str) -> ModelResult<Model> {
+    pub async fn find_by_email(db: &DatabaseConnection, email: &str) -> ModelResult<User> {
         let user = Self::find()
             .filter(model::query::condition().eq(users::Column::Email, email))
             .one(db)
@@ -93,7 +94,7 @@ impl Entity {
     /// # Errors
     ///
     /// When could not find user by the given pid or DB query error
-    pub async fn find_by_pid(db: &DatabaseConnection, pid: &Uuid) -> ModelResult<Model> {
+    pub async fn find_by_pid(db: &DatabaseConnection, pid: &Uuid) -> ModelResult<User> {
         let user = Self::find()
             .filter(model::query::condition().eq(users::Column::Pid, *pid))
             .one(db)
@@ -107,7 +108,7 @@ impl Entity {
     /// # Errors
     ///
     /// When could not find user by the given db id or DB query error
-    pub async fn find_by_db_id(db: &DatabaseConnection, user_id: i32) -> ModelResult<Model> {
+    pub async fn find_by_db_id(db: &DatabaseConnection, user_id: i32) -> ModelResult<User> {
         let user = Self::find_by_id(user_id).one(db).await?;
 
         user.ok_or_else(|| ModelError::EntityNotFound)

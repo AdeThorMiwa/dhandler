@@ -1,0 +1,41 @@
+use crate::{
+    libs::{markdown, multipart_parser::parse_multipart},
+    services::knowledge_base::{AddKnowledgeBase, KnowledgeBaseService, KnowledgeBaseSource},
+    utils,
+    views::knowledge_base::KnowledgeBaseResponse,
+};
+use loco_rs::prelude::*;
+use serde::Deserialize;
+
+#[derive(Deserialize, Validate, Debug)]
+pub struct AddKnowledgeBaseRequest {
+    #[validate(length(min = 2))]
+    pub label: String,
+}
+
+#[debug_handler]
+async fn add_knowledge_base(
+    auth: auth::JWT,
+    State(ctx): State<AppContext>,
+    multipart: Multipart,
+) -> Result<Response> {
+    let service = utils::app::get::<KnowledgeBaseService>(&ctx)?;
+    let pid: Uuid = utils::app::get_pid(&auth)?;
+    let mut req = parse_multipart::<AddKnowledgeBaseRequest>(multipart, vec!["content"]).await?;
+    let content = markdown::read_from_stream(req.files.get_mut("content").unwrap()).await?;
+    let payload = AddKnowledgeBase {
+        owner_id: pid,
+        label: req.body.label.to_string(),
+        content: content,
+        source: KnowledgeBaseSource::Upload,
+    };
+
+    let knowledge_base = service.add_knowledge_base(payload).await?;
+    format::json(KnowledgeBaseResponse::new(&knowledge_base))
+}
+
+pub fn routes() -> Routes {
+    Routes::new()
+        .prefix("knowledge-base")
+        .add("add", post(add_knowledge_base))
+}

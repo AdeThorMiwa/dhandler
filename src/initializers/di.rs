@@ -4,7 +4,10 @@ use std::sync::Arc;
 
 use crate::{
     libs::google::auth::GoogleAuthClient,
-    services::{auth::AuthService, google_auth::GoogleAuthService, user::UserService},
+    services::{
+        auth::AuthService, google_auth::GoogleAuthService, knowledge_base::KnowledgeBaseService,
+        user::UserService,
+    },
     utils::settings::Settings,
 };
 
@@ -30,6 +33,7 @@ impl Initializer for DIInitializer {
             .add(GoogleAuthService::singleton())
             .add(UserService::singleton())
             .add(AuthService::singleton())
+            .add(KnowledgeBaseService::singleton())
             .build_provider()
             .unwrap();
 

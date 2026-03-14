@@ -6,7 +6,7 @@ use loco_rs::prelude::*;
 use crate::{
     models::{
         google_auth_users::{CreateGoogleAuthUserPayload, GoogleAuthUsers},
-        users::{self, CreateUserPayload, Users},
+        users::{CreateUserPayload, User, Users},
     },
     services::google_auth::GoogleUser,
 };
@@ -19,7 +19,7 @@ pub struct UserService {
 impl UserService {
     /// # Errors
     /// Returns an error if some database operation fails.
-    pub async fn get_or_create_user(&self, payload: GoogleUser) -> Result<users::Model> {
+    pub async fn get_or_create_user(&self, payload: GoogleUser) -> Result<User> {
         if let Ok(google_user) = GoogleAuthUsers::find_by_sub(&self.db, &payload.user.sub).await {
             return Ok(Users::find_by_db_id(&self.db, google_user.user_id).await?);
         }
@@ -45,10 +45,10 @@ impl UserService {
 
         tx.commit().await?;
 
-        Ok(user)
+        Ok(user.into())
     }
 
-    pub async fn get_user_by_id(&self, pid: &Uuid) -> Result<users::Model> {
+    pub async fn get_user_by_id(&self, pid: &Uuid) -> Result<User> {
         let user = Users::find_by_pid(&self.db, pid).await?;
         Ok(user)
     }

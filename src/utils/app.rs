@@ -13,3 +13,12 @@ pub fn get<T: 'static>(ctx: &AppContext) -> Result<Arc<T>> {
 
     Ok(provider.get_required::<T>())
 }
+
+pub fn get_pid(auth: &auth::JWT) -> Result<Uuid> {
+    let pid: Uuid = auth.claims.pid.parse().map_err(|e| {
+        tracing::error!("Failed to parse pid: {}", e);
+        Error::InternalServerError
+    })?;
+
+    Ok(pid)
+}

@@ -4,7 +4,7 @@ use sea_orm::entity::prelude::*;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq, Serialize, Deserialize)]
-#[sea_orm(table_name = "users")]
+#[sea_orm(table_name = "knowledge_bases")]
 pub struct Model {
     pub created_at: DateTimeWithTimeZone,
     pub updated_at: DateTimeWithTimeZone,
@@ -12,28 +12,28 @@ pub struct Model {
     pub id: i32,
     #[sea_orm(unique)]
     pub pid: Uuid,
+    pub label: String,
+    #[sea_orm(column_type = "Text")]
+    pub content: String,
+    pub owner_id: i32,
     #[sea_orm(unique)]
-    pub email: String,
-    pub username: String,
-    pub auth_provider: String,
+    pub source: String,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
 pub enum Relation {
-    #[sea_orm(has_many = "super::google_auth_users::Entity")]
-    GoogleAuthUsers,
-    #[sea_orm(has_many = "super::knowledge_bases::Entity")]
-    KnowledgeBases,
+    #[sea_orm(
+        belongs_to = "super::users::Entity",
+        from = "Column::OwnerId",
+        to = "super::users::Column::Id",
+        on_update = "Cascade",
+        on_delete = "Cascade"
+    )]
+    Users,
 }
 
-impl Related<super::google_auth_users::Entity> for Entity {
+impl Related<super::users::Entity> for Entity {
     fn to() -> RelationDef {
-        Relation::GoogleAuthUsers.def()
-    }
-}
-
-impl Related<super::knowledge_bases::Entity> for Entity {
-    fn to() -> RelationDef {
-        Relation::KnowledgeBases.def()
+        Relation::Users.def()
     }
 }
