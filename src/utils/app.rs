@@ -35,7 +35,7 @@ pub async fn get_authenticated_user(auth: &auth::JWT, ctx: &AppContext) -> Resul
         Error::InternalServerError
     })?;
 
-    let user_service = get::<UserService>(&ctx)?;
+    let user_service = get::<UserService>(ctx)?;
 
     user_service.get_user_by_pid(&pid).await
 }

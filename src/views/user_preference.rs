@@ -35,7 +35,7 @@ impl UserPreferenceResponse {
             preferred_modalities: preference
                 .preferred_modalities
                 .iter()
-                .map(|m| m.to_value().to_string())
+                .map(ActiveEnum::to_value)
                 .collect(),
             preferred_countries: preference.preferred_countries.clone(),
             last_updated: preference.updated_at.to_string(),

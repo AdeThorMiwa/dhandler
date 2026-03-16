@@ -10,6 +10,11 @@ pub struct UserPreferenceService {
 }
 
 impl UserPreferenceService {
+    /// Get a user preference
+    ///
+    /// # Errors
+    ///
+    /// fail is no user preference is found or some db error
     pub async fn get_user_preference(&self, user_id: i32) -> Result<UserPreference> {
         match UserPreferences::find_by_owner_id(&self.db, user_id).await {
             Ok(preference) => Ok(preference),
@@ -18,6 +23,11 @@ impl UserPreferenceService {
         }
     }
 
+    /// Upsert user preference
+    ///
+    /// # Errors
+    ///
+    /// fails if some db error occurs
     pub async fn upsert_user_preference(
         &self,
         user_id: i32,

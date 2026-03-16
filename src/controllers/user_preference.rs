@@ -23,7 +23,7 @@ async fn upsert_user_preference(
 ) -> Result<Response> {
     let service = utils::app::get::<UserPreferenceService>(&ctx)?;
     let user = utils::app::get_authenticated_user(&auth, &ctx).await?;
-    let preference = service.upsert_user_preference(user.id, req.into()).await?;
+    let preference = service.upsert_user_preference(user.id, req).await?;
     format::json(UserPreferenceResponse::new(&preference))
 }
 

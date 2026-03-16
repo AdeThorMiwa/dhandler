@@ -31,6 +31,11 @@ impl UserPreference {}
 
 // implement your write-oriented logic here
 impl ActiveModel {
+    /// Edit a user preference
+    ///
+    /// # Errors
+    ///
+    /// If db update fails
     pub async fn edit(
         mut self,
         db: &DatabaseConnection,
@@ -92,6 +97,11 @@ impl ActiveModel {
 
 // implement your custom finders, selectors oriented logic here
 impl Entity {
+    /// Create a new user preference
+    ///
+    /// # Errors
+    ///
+    /// If db insert fails
     pub async fn create(
         db: &DatabaseConnection,
         owner_id: i32,
@@ -110,16 +120,15 @@ impl Entity {
         let organization_blacklist =
             ActiveValue::Set(payload.organization_blacklist.unwrap_or_default());
         let minimum_salary = ActiveValue::Set(payload.minimum_salary.unwrap_or_default());
-        let preferred_modalities = ActiveValue::Set(payload.preferred_modalities.unwrap_or(vec![
-            Modality::Onsite,
-            Modality::Remote,
-            Modality::Hybrid,
-        ]));
+        let preferred_modalities = ActiveValue::Set(
+            payload
+                .preferred_modalities
+                .unwrap_or_else(|| vec![Modality::Onsite, Modality::Remote, Modality::Hybrid]),
+        );
         let preferred_countries = ActiveValue::Set(payload.preferred_countries);
 
         let preference = user_preferences::ActiveModel {
             pid,
-            owner_id,
             directories,
             job_search_at,
             application_delay,
@@ -130,6 +139,7 @@ impl Entity {
             minimum_salary,
             preferred_modalities,
             preferred_countries,
+            owner_id,
             ..Default::default()
         }
         .insert(db)
@@ -138,6 +148,11 @@ impl Entity {
         Ok(preference)
     }
 
+    /// Find a user preference by owner id
+    ///
+    /// # Errors
+    ///
+    /// If no preference is found
     pub async fn find_by_owner_id(
         db: &DatabaseConnection,
         owner_id: i32,
