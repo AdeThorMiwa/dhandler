@@ -1,6 +1,6 @@
-use the_handler::app::App;
 use loco_rs::testing::prelude::*;
 use serial_test::serial;
+use the_handler::app::App;
 
 macro_rules! configure_insta {
     ($($expr:expr),*) => {
