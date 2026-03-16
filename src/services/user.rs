@@ -8,12 +8,13 @@ use crate::{
         google_auth_users::{CreateGoogleAuthUserPayload, GoogleAuthUsers},
         users::{CreateUserPayload, User, Users},
     },
-    services::google_auth::GoogleUser,
+    services::{encryption::EncryptionService, google_auth::GoogleUser},
 };
 
 #[injectable]
 pub struct UserService {
     db: Arc<DatabaseConnection>,
+    encryption: Arc<EncryptionService>,
 }
 
 impl UserService {
@@ -34,13 +35,17 @@ impl UserService {
 
         let user = Users::create(&tx, create_user_payload).await?;
 
+        let refresh_token = self
+            .encryption
+            .encrypt(&payload.exchange.refresh_token)
+            .await?;
+
         let payload = CreateGoogleAuthUserPayload {
             user_id: user.id,
             sub: payload.user.sub.clone(),
-            refresh_token: payload.exchange.refresh_token.to_string(),
+            refresh_token: refresh_token,
         };
 
-        // @todo: encrypt refresh token
         GoogleAuthUsers::create(&tx, payload).await?;
 
         tx.commit().await?;

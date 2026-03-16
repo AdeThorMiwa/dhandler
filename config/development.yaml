@@ -104,3 +104,5 @@ settings:
      client_id: "{{ get_env(name='GOOGLE_CLIENT_ID', default='') }}"
      client_secret: "{{ get_env(name='GOOGLE_CLIENT_SECRET', default='') }}"
      redirect_uri: "http://localhost:5173"
+   encryption:
+     key_path: "dev_secret.key"
