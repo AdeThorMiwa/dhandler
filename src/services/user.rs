@@ -58,8 +58,18 @@ impl UserService {
     /// # Errors
     ///
     /// Returns an error if the user cannot be found.
-    pub async fn get_user_by_id(&self, pid: &Uuid) -> Result<User> {
+    pub async fn get_user_by_pid(&self, pid: &Uuid) -> Result<User> {
         let user = Users::find_by_pid(&self.db, pid).await?;
+        Ok(user)
+    }
+
+    /// Gets a user by their ID.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the user cannot be found.
+    pub async fn get_user_by_id(&self, id: i32) -> Result<User> {
+        let user = Users::find_by_db_id(&self.db, id).await?;
         Ok(user)
     }
 }

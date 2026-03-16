@@ -5,14 +5,10 @@ use loco_rs::prelude::*;
 use regex::Regex;
 use uuid::Uuid;
 
-use crate::{
-    models::knowledge_bases::{CreateKnowledgeBase, KnowledgeBase, KnowledgeBases},
-    services::user::UserService,
-};
+use crate::models::knowledge_bases::{CreateKnowledgeBase, KnowledgeBase, KnowledgeBases};
 
 #[injectable]
 pub struct KnowledgeBaseService {
-    user_service: Arc<UserService>,
     db: Arc<DatabaseConnection>,
 }
 
@@ -26,10 +22,9 @@ impl KnowledgeBaseService {
     ///
     /// Returns an error if the knowledge base cannot be added.
     pub async fn add_knowledge_base(&self, payload: AddKnowledgeBase) -> Result<KnowledgeBase> {
-        let user = self.user_service.get_user_by_id(&payload.owner_id).await?;
         let source = Self::normalize_source(&payload.source);
 
-        match KnowledgeBases::find_by_source(&self.db, user.id, &source).await {
+        match KnowledgeBases::find_by_source(&self.db, payload.owner_id, &source).await {
             Ok(Some(existing)) => {
                 let old_content = &existing.content;
                 let new_content = Self::merge_content(old_content, &payload.content);
@@ -43,7 +38,7 @@ impl KnowledgeBaseService {
             }
             Ok(None) => {
                 let payload = CreateKnowledgeBase {
-                    owner_id: user.id,
+                    owner_id: payload.owner_id,
                     label: payload.label,
                     content: payload.content,
                     source,
@@ -68,10 +63,9 @@ impl KnowledgeBaseService {
     pub async fn get_user_knowledge_base_by_id(
         &self,
         id: Uuid,
-        owner_id: Uuid,
+        owner_id: i32,
     ) -> Result<KnowledgeBase> {
-        let user = self.user_service.get_user_by_id(&owner_id).await?;
-        Ok(KnowledgeBases::find_by_pid_and_owner(&self.db, id, user.id).await?)
+        Ok(KnowledgeBases::find_by_pid_and_owner(&self.db, id, owner_id).await?)
     }
 
     /// Gets an aggregated knowledge base for a given owner ID.
@@ -79,10 +73,8 @@ impl KnowledgeBaseService {
     /// # Errors
     ///
     /// Returns an error if the knowledge base cannot be found.
-    pub async fn get_aggregated_knowledge_base(&self, owner_id: Uuid) -> Result<String> {
-        let user = self.user_service.get_user_by_id(&owner_id).await?;
-
-        let aggregated_content = KnowledgeBases::find_by_owner_id(&self.db, user.id)
+    pub async fn get_aggregated_knowledge_base(&self, owner_id: i32) -> Result<String> {
+        let aggregated_content = KnowledgeBases::find_by_owner_id(&self.db, owner_id)
             .await?
             .into_iter()
             .map(|kb| format!("Label:\n{}\n\nContent:\n{}", kb.label, kb.content))
@@ -125,7 +117,7 @@ pub enum KnowledgeBaseSource {
 }
 
 pub struct AddKnowledgeBase {
-    pub owner_id: Uuid,
+    pub owner_id: i32,
     pub label: String,
     pub content: String,
     pub source: KnowledgeBaseSource,

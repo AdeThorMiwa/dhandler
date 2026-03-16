@@ -5,11 +5,13 @@ use std::any::type_name;
 use std::sync::Arc;
 
 use crate::libs::google::auth::GoogleAuthClient;
+use crate::models::users::User;
 use crate::services::auth::AuthService;
 use crate::services::encryption::EncryptionService;
 use crate::services::google_auth::GoogleAuthService;
 use crate::services::knowledge_base::KnowledgeBaseService;
 use crate::services::user::UserService;
+use crate::services::user_preference::UserPreferenceService;
 use crate::utils::settings::Settings;
 
 /// # Errors
@@ -27,13 +29,15 @@ pub fn get<T: 'static>(ctx: &AppContext) -> Result<Arc<T>> {
 ///
 /// # Errors
 /// Returns an error if the PID cannot be parsed.
-pub fn get_pid(auth: &auth::JWT) -> Result<Uuid> {
+pub async fn get_authenticated_user(auth: &auth::JWT, ctx: &AppContext) -> Result<User> {
     let pid: Uuid = auth.claims.pid.parse().map_err(|e| {
         tracing::error!("Failed to parse pid: {}", e);
         Error::InternalServerError
     })?;
 
-    Ok(pid)
+    let user_service = get::<UserService>(&ctx)?;
+
+    user_service.get_user_by_pid(&pid).await
 }
 
 pub struct DIContext {
@@ -59,6 +63,7 @@ pub fn create_di_provider(ctx: &DIContext) -> ServiceProvider {
         .add(GoogleAuthClient::singleton())
         .add(GoogleAuthService::singleton())
         .add(EncryptionService::singleton())
+        .add(UserPreferenceService::singleton())
         .add(UserService::singleton())
         .add(AuthService::singleton())
         .add(KnowledgeBaseService::singleton())

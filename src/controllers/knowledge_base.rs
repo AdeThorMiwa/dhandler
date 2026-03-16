@@ -28,11 +28,11 @@ async fn upload_knowledge_base(
     multipart: Multipart,
 ) -> Result<Response> {
     let service = utils::app::get::<KnowledgeBaseService>(&ctx)?;
-    let pid: Uuid = utils::app::get_pid(&auth)?;
+    let user = utils::app::get_authenticated_user(&auth, &ctx).await?;
     let mut req = parse_multipart::<UploadKnowledgeBaseRequest>(multipart, vec!["content"]).await?;
     let content = markdown::read_from_stream(req.files.get_mut("content").unwrap()).await?;
     let payload = AddKnowledgeBase {
-        owner_id: pid,
+        owner_id: user.id,
         label: req.body.label.clone(),
         content,
         source: KnowledgeBaseSource::Upload,
@@ -49,9 +49,10 @@ async fn add_knowledge_base(
     JsonValidate(payload): JsonValidate<AddKnowledgeBaseRequest>,
 ) -> Result<Response> {
     let service = utils::app::get::<KnowledgeBaseService>(&ctx)?;
-    let pid: Uuid = utils::app::get_pid(&auth)?;
+    let user = utils::app::get_authenticated_user(&auth, &ctx).await?;
+
     let payload = AddKnowledgeBase {
-        owner_id: pid,
+        owner_id: user.id,
         label: payload.label.clone(),
         content: payload.content.clone(),
         source: KnowledgeBaseSource::Upload,
@@ -68,8 +69,8 @@ async fn get_knowledge_base(
     Path(id): Path<Uuid>,
 ) -> Result<Response> {
     let service = utils::app::get::<KnowledgeBaseService>(&ctx)?;
-    let pid: Uuid = utils::app::get_pid(&auth)?;
-    let knowledge_base = service.get_user_knowledge_base_by_id(id, pid).await?;
+    let user = utils::app::get_authenticated_user(&auth, &ctx).await?;
+    let knowledge_base = service.get_user_knowledge_base_by_id(id, user.id).await?;
     format::json(KnowledgeBaseResponse::new(&knowledge_base))
 }
 

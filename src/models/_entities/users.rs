@@ -24,6 +24,8 @@ pub enum Relation {
     GoogleAuthUsers,
     #[sea_orm(has_many = "super::knowledge_bases::Entity")]
     KnowledgeBases,
+    #[sea_orm(has_many = "super::user_preferences::Entity")]
+    UserPreferences,
 }
 
 impl Related<super::google_auth_users::Entity> for Entity {
@@ -35,5 +37,11 @@ impl Related<super::google_auth_users::Entity> for Entity {
 impl Related<super::knowledge_bases::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::KnowledgeBases.def()
+    }
+}
+
+impl Related<super::user_preferences::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::UserPreferences.def()
     }
 }
