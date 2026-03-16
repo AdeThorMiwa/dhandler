@@ -23,6 +23,10 @@ pub fn get<T: 'static>(ctx: &AppContext) -> Result<Arc<T>> {
     Ok(provider.get_required::<T>())
 }
 
+/// Gets the PID from the JWT claims.
+///
+/// # Errors
+/// Returns an error if the PID cannot be parsed.
 pub fn get_pid(auth: &auth::JWT) -> Result<Uuid> {
     let pid: Uuid = auth.claims.pid.parse().map_err(|e| {
         tracing::error!("Failed to parse pid: {}", e);
@@ -37,7 +41,12 @@ pub struct DIContext {
     pub config: Arc<Config>,
 }
 
-pub fn create_di_provider(ctx: DIContext) -> ServiceProvider {
+/// Creates a dependency injection provider.
+///
+/// # Panics
+/// Panics if the provider cannot be built.
+#[must_use]
+pub fn create_di_provider(ctx: &DIContext) -> ServiceProvider {
     let db = ctx.db.clone();
     let config = ctx.config.clone();
     let settings =

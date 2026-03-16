@@ -16,9 +16,9 @@ impl KnowledgeBaseResponse {
     pub fn new(knowledge_base: &KnowledgeBase) -> Self {
         Self {
             id: knowledge_base.pid.to_string(),
-            label: knowledge_base.label.to_owned(),
-            content: knowledge_base.content.to_owned(),
-            source: knowledge_base.source.to_owned(),
+            label: knowledge_base.label.clone(),
+            content: knowledge_base.content.clone(),
+            source: knowledge_base.source.clone(),
             last_updated: knowledge_base.updated_at.to_string(),
         }
     }

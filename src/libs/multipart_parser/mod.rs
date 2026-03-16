@@ -18,6 +18,7 @@ impl<B: Debug> Debug for ParsedMultipart<B> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("ParsedMultipart")
             .field("body", &self.body)
+            .field("files", &format!("[{} files]", self.files.len()))
             .finish()
     }
 }
@@ -33,20 +34,25 @@ impl From<ParseMultipartError> for loco_rs::Error {
         match err {
             ParseMultipartError::MissingRequiredFiles => {
                 tracing::error!("missing required files");
-                loco_rs::Error::BadRequest("Missing required files".to_string())
+                Self::BadRequest("Missing required files".to_string())
             }
             ParseMultipartError::SerializationError(e) => {
                 tracing::error!("Serialiazation error: {e}");
-                loco_rs::Error::InternalServerError
+                Self::InternalServerError
             }
             ParseMultipartError::MultipartError(e) => {
                 tracing::error!("Multipart error: {e}");
-                loco_rs::Error::InternalServerError
+                Self::InternalServerError
             }
         }
     }
 }
 
+/// Parses a multipart request into a `ParsedMultipart` struct.
+///
+/// # Errors
+///
+/// Returns a `ParseMultipartError` if the multipart request is invalid.
 #[instrument(skip(multipart))]
 pub async fn parse_multipart<B>(
     mut multipart: Multipart,
@@ -61,7 +67,7 @@ where
     while let Some(field) = multipart
         .next_field()
         .await
-        .map_err(|e| ParseMultipartError::MultipartError(e))?
+        .map_err(ParseMultipartError::MultipartError)?
     {
         let name = field.name().unwrap_or_default().to_string();
 
@@ -70,7 +76,7 @@ where
                 let bytes: Bytes = field
                     .bytes()
                     .await
-                    .map_err(|e| ParseMultipartError::MultipartError(e))?;
+                    .map_err(ParseMultipartError::MultipartError)?;
 
                 let reader: Pin<Box<dyn AsyncRead + Send>> = Box::pin(Cursor::new(bytes));
 
@@ -80,7 +86,7 @@ where
             let value = field
                 .text()
                 .await
-                .map_err(|e| ParseMultipartError::MultipartError(e))?;
+                .map_err(ParseMultipartError::MultipartError)?;
 
             fields.insert(name, value);
         }
@@ -90,11 +96,10 @@ where
         return Err(ParseMultipartError::MissingRequiredFiles);
     }
 
-    let fields =
-        serde_json::to_string(&fields).map_err(|e| ParseMultipartError::SerializationError(e))?;
+    let fields = serde_json::to_string(&fields).map_err(ParseMultipartError::SerializationError)?;
 
-    let body = serde_json::from_str::<B>(&fields)
-        .map_err(|e| ParseMultipartError::SerializationError(e))?;
+    let body =
+        serde_json::from_str::<B>(&fields).map_err(ParseMultipartError::SerializationError)?;
 
-    Ok(ParsedMultipart { body: body, files })
+    Ok(ParsedMultipart { body, files })
 }

@@ -39,6 +39,11 @@ impl GoogleAuthService {
         Ok(GoogleUser { user, exchange })
     }
 
+    /// Checks that the scopes in the exchange token response are valid.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the scopes are incomplete.
     pub fn check_scope_validity(&self, exchange: &ExchangeTokenResponse) -> Result<()> {
         let scopes = exchange.scope.split_whitespace().collect::<Vec<_>>();
         if !scopes.iter().all(|s| VALID_SCOPES.contains(s)) {

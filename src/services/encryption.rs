@@ -17,12 +17,16 @@ pub struct EncryptionService {
 }
 
 impl EncryptionService {
-    // we want to skip token too
+    /// Encrypts a token using AES-GCM with a key read from the encryption key path.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the encryption key path cannot be read or if the token cannot be encrypted.
     #[instrument(skip(self, token))]
     pub async fn encrypt(&self, token: &str) -> Result<String> {
         let key_bytes = tokio::fs::read(&self.settings.encryption.key_path).await?;
         let key = Key::<Aes256Gcm>::from_slice(&key_bytes);
-        let mut cipher = Aes256Gcm::new(&key);
+        let mut cipher = Aes256Gcm::new(key);
         let nonce = Aes256Gcm::generate_nonce(&mut OsRng);
 
         let ciphertext = cipher.encrypt(&nonce, token.as_ref()).map_err(|e| {
@@ -36,6 +40,11 @@ impl EncryptionService {
         Ok(general_purpose::STANDARD.encode(merged))
     }
 
+    /// Decrypts a token using AES-GCM with a key read from the encryption key path.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the encryption key path cannot be read or if the token cannot be decrypted.
     #[instrument(skip(self))]
     pub async fn decrypt(&self, token: &str) -> Result<String> {
         let decoded = general_purpose::STANDARD.decode(token).map_err(|e| {
@@ -44,19 +53,19 @@ impl EncryptionService {
         })?;
         let key_bytes = tokio::fs::read(&self.settings.encryption.key_path).await?;
         let key = Key::<Aes256Gcm>::from_slice(&key_bytes);
-        let mut cipher = Aes256Gcm::new(&key);
+        let mut cipher = Aes256Gcm::new(key);
         let (nonce, ciphertext) = decoded.split_at(12);
         let nonce = Nonce::<Aes256Gcm>::from_slice(nonce);
 
-        let plaintext = cipher.decrypt(&nonce, ciphertext.as_ref()).map_err(|e| {
+        let plaintext = cipher.decrypt(nonce, ciphertext.as_ref()).map_err(|e| {
             tracing::error!("Error decrypting token: {}", e);
             Error::InternalServerError
         })?;
 
-        Ok(String::from_utf8(plaintext).map_err(|e| {
+        String::from_utf8(plaintext).map_err(|e| {
             tracing::error!("Error converting plaintext to string: {}", e);
             Error::InternalServerError
-        })?)
+        })
     }
 }
 
@@ -79,7 +88,7 @@ mod tests {
             config: Arc::new(config),
         };
 
-        create_di_provider(ctx)
+        create_di_provider(&ctx)
     }
 
     #[tokio::test]

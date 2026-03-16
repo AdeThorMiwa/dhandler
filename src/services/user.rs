@@ -43,16 +43,21 @@ impl UserService {
         let payload = CreateGoogleAuthUserPayload {
             user_id: user.id,
             sub: payload.user.sub.clone(),
-            refresh_token: refresh_token,
+            refresh_token,
         };
 
         GoogleAuthUsers::create(&tx, payload).await?;
 
         tx.commit().await?;
 
-        Ok(user.into())
+        Ok(user)
     }
 
+    /// Gets a user by their PID.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the user cannot be found.
     pub async fn get_user_by_id(&self, pid: &Uuid) -> Result<User> {
         let user = Users::find_by_pid(&self.db, pid).await?;
         Ok(user)

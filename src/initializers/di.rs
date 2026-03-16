@@ -17,7 +17,7 @@ impl Initializer for DIInitializer {
             config: Arc::new(ctx.config.clone()),
         };
 
-        let provider = create_di_provider(context);
+        let provider = create_di_provider(&context);
 
         ctx.shared_store.insert(provider);
         Ok(())

@@ -27,7 +27,7 @@ impl AuthenticatedUser {
     pub fn new(user: &users::Model) -> Self {
         Self {
             id: user.pid.to_string(),
-            username: user.username.to_string(),
+            username: user.username.clone(),
         }
     }
 }

@@ -27,6 +27,11 @@ impl KnowledgeBase {}
 
 // implement your write-oriented logic here
 impl ActiveModel {
+    /// Updates the content of the knowledge base.
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if the update fails.
     pub async fn update_content(
         mut self,
         db: &DatabaseConnection,
@@ -39,6 +44,11 @@ impl ActiveModel {
 
 // implement your custom finders, selectors oriented logic here
 impl Entity {
+    /// Creates a new knowledge base.
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if the creation fails.
     pub async fn create(
         db: &DatabaseConnection,
         payload: CreateKnowledgeBase,
@@ -57,11 +67,16 @@ impl Entity {
         Ok(knowledge_base)
     }
 
+    /// Finds all knowledge bases owned by a given owner ID.
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if no knowledge bases are found.
     pub async fn find_by_owner_id(
         db: &DatabaseConnection,
         owner_id: i32,
     ) -> ModelResult<Vec<KnowledgeBase>> {
-        let knowledge_bases = Entity::find()
+        let knowledge_bases = Self::find()
             .filter(knowledge_bases::Column::OwnerId.eq(owner_id))
             .all(db)
             .await?;
@@ -69,12 +84,17 @@ impl Entity {
         Ok(knowledge_bases)
     }
 
+    /// Finds a knowledge base by its PID and owner ID.
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if no knowledge base is found.
     pub async fn find_by_pid_and_owner(
         db: &DatabaseConnection,
         pid: Uuid,
         owner_id: i32,
     ) -> ModelResult<KnowledgeBase> {
-        let knowledge_bases = Entity::find()
+        let knowledge_bases = Self::find()
             .filter(knowledge_bases::Column::Pid.eq(pid))
             .filter(knowledge_bases::Column::OwnerId.eq(owner_id))
             .one(db)
@@ -83,12 +103,17 @@ impl Entity {
         knowledge_bases.ok_or_else(|| ModelError::EntityNotFound)
     }
 
+    /// Finds a knowledge base by its owner ID and source.
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if no knowledge base is found.
     pub async fn find_by_source(
         db: &DatabaseConnection,
         owner_id: i32,
         source: &str,
     ) -> ModelResult<Option<KnowledgeBase>> {
-        let knowledge_base = Entity::find()
+        let knowledge_base = Self::find()
             .filter(knowledge_bases::Column::OwnerId.eq(owner_id))
             .filter(knowledge_bases::Column::Source.eq(source))
             .one(db)

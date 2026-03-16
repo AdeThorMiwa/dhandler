@@ -17,6 +17,14 @@ pub struct KnowledgeBaseService {
 }
 
 impl KnowledgeBaseService {
+    /// Adds a knowledge base to the database.
+    ///
+    /// If a knowledge base with the same source already exists for the user,
+    /// the content will be merged with the existing knowledge base.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the knowledge base cannot be added.
     pub async fn add_knowledge_base(&self, payload: AddKnowledgeBase) -> Result<KnowledgeBase> {
         let user = self.user_service.get_user_by_id(&payload.owner_id).await?;
         let source = Self::normalize_source(&payload.source);
@@ -24,7 +32,7 @@ impl KnowledgeBaseService {
         match KnowledgeBases::find_by_source(&self.db, user.id, &source).await {
             Ok(Some(existing)) => {
                 let old_content = &existing.content;
-                let new_content = self.merge_content(old_content, &payload.content).await?;
+                let new_content = Self::merge_content(old_content, &payload.content);
 
                 let knowledge_base = existing
                     .into_active_model()
@@ -38,7 +46,7 @@ impl KnowledgeBaseService {
                     owner_id: user.id,
                     label: payload.label,
                     content: payload.content,
-                    source: source,
+                    source,
                 };
 
                 let knowledge_base = KnowledgeBases::create(&self.db, payload).await?;
@@ -52,6 +60,11 @@ impl KnowledgeBaseService {
         }
     }
 
+    /// Gets a knowledge base by its ID and owner ID.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the knowledge base cannot be found.
     pub async fn get_user_knowledge_base_by_id(
         &self,
         id: Uuid,
@@ -61,6 +74,11 @@ impl KnowledgeBaseService {
         Ok(KnowledgeBases::find_by_pid_and_owner(&self.db, id, user.id).await?)
     }
 
+    /// Gets an aggregated knowledge base for a given owner ID.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the knowledge base cannot be found.
     pub async fn get_aggregated_knowledge_base(&self, owner_id: Uuid) -> Result<String> {
         let user = self.user_service.get_user_by_id(&owner_id).await?;
 
@@ -86,13 +104,18 @@ impl KnowledgeBaseService {
         }
     }
 
-    async fn merge_content(&self, old_content: &str, new_content: &str) -> Result<String> {
+    /// Merges two knowledge base contents together.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the merge fails.
+    fn merge_content(old_content: &str, new_content: &str) -> String {
         // TODO: use a diffing algorithm here or LLM
         if old_content.is_empty() || old_content == new_content {
-            return Ok(new_content.to_string());
+            return new_content.to_string();
         }
 
-        Ok(format!("{}\n\n{}", old_content, new_content))
+        format!("{old_content}\n\n{new_content}")
     }
 }
 
