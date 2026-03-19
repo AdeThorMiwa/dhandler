@@ -51,7 +51,9 @@ mod tests {
 
     use crate::{
         libs::browser::EnvironmentOrchestrator,
-        services::directory::{linkedin::LinkedinJobDirectory, FetchJobRequest},
+        services::directory::{
+            linkedin::LinkedinJobDirectory, FetchJobFilters, FetchJobRequest, Modality,
+        },
         utils::testing,
     };
 
@@ -75,17 +77,26 @@ mod tests {
             .await
             .expect("failed to start orchestrator");
 
+        let filters = FetchJobFilters {
+            role: "Software Engineer".to_string(),
+            location: Some("Ireland".to_string()),
+            modalities: Some(vec![Modality::Hybrid, Modality::Onsite]),
+            ..Default::default()
+        };
+
         let request = FetchJobRequest {
             ref_id: Uuid::new_v4(),
-            role: "Software Engineer".to_string(),
+            limit: 26,
+            filters,
         };
 
         let jobs = service
-            .fetch_jobs(LinkedinJobDirectory::ID, request, &mut orchestrator)
+            .fetch_jobs(LinkedinJobDirectory::ID, request.clone(), &mut orchestrator)
             .await;
 
         assert!(jobs.is_ok());
         let jobs = jobs.unwrap();
-        assert_eq!(jobs.len(), 0);
+        println!("jobs: {:#?}", jobs);
+        assert_eq!(jobs.len(), request.limit);
     }
 }
