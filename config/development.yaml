@@ -106,3 +106,9 @@ settings:
      redirect_uri: "http://localhost:5173"
    encryption:
      key_path: "dev_secret.key"
+   linkedin:
+     webdriver_url: "{{ get_env(name='WEBDRIVER_URL', default='http://localhost:9515') }}"
+     li_at: "{{ get_env(name='LI_AT', default='AQEDATK6330EIqVLAAABnEK--AYAAAGdFv7G300AHnyJz7xXZZsjdXKiipy_2j0MJPFOMlErwA3RvIgcvLqQbE_X_n5ZMp1wAPxD4mhD1rMNlXD5VE0KGKs97R1wudCdZVCXZz1QGuXt1xmXaZR2kNNP') }}"
+     jsessionid: "{{ get_env(name='JSESSIONID', default='ajax:5241677388781229577') }}"
+     pagination_size: 10
+     pagination_max_pages: 40

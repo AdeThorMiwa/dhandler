@@ -7,6 +7,9 @@ use std::sync::Arc;
 use crate::libs::google::auth::GoogleAuthClient;
 use crate::models::users::User;
 use crate::services::auth::AuthService;
+use crate::services::directory::currency::CurrencyConverter;
+use crate::services::directory::linkedin::LinkedInJobDirectory;
+use crate::services::directory::service::JobDirectoryService;
 use crate::services::encryption::EncryptionService;
 use crate::services::google_auth::GoogleAuthService;
 use crate::services::knowledge_base::KnowledgeBaseService;
@@ -50,23 +53,29 @@ pub struct DIContext {
 /// # Panics
 /// Panics if the provider cannot be built.
 #[must_use]
-pub fn create_di_provider(ctx: &DIContext) -> ServiceProvider {
+pub fn create_di_provider(ctx: &AppContext) -> ServiceProvider {
     let db = ctx.db.clone();
     let config = ctx.config.clone();
     let settings =
         serde_json::from_value::<Settings>(ctx.config.settings.clone().unwrap()).unwrap();
 
     ServiceCollection::new()
-        .add(singleton_as_self::<DatabaseConnection>().from(move |_| db.clone()))
-        .add(singleton_as_self::<Config>().from(move |_| config.clone()))
+        .add(singleton_as_self::<DatabaseConnection>().from(move |_| Arc::new(db.clone())))
+        .add(singleton_as_self::<Config>().from(move |_| Arc::new(config.clone())))
         .add(singleton_as_self::<Settings>().from(move |_| Arc::new(settings.clone())))
         .add(GoogleAuthClient::singleton())
+        .add(
+            singleton_as_self::<CurrencyConverter>()
+                .from(move |_| Arc::new(CurrencyConverter::new())),
+        )
         .add(GoogleAuthService::singleton())
         .add(EncryptionService::singleton())
+        .add(LinkedInJobDirectory::transient())
         .add(UserPreferenceService::singleton())
         .add(UserService::singleton())
         .add(AuthService::singleton())
         .add(KnowledgeBaseService::singleton())
+        .add(JobDirectoryService::singleton())
         .build_provider()
         .unwrap()
 }

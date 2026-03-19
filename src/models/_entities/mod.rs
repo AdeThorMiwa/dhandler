@@ -4,6 +4,8 @@ pub mod prelude;
 
 pub mod google_auth_users;
 pub mod knowledge_bases;
+pub mod linkedin_creds;
+pub mod linkedin_seen_jobs;
 pub mod sea_orm_active_enums;
 pub mod user_preferences;
 pub mod users;

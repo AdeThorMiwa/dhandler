@@ -31,12 +31,11 @@ workers:
   #   - BackgroundAsync - Workers operate asynchronously in the background, processing tasks with async capabilities.
   mode: ForegroundBlocking
 
-  
 # Queue Configuration
 queue:
   kind: Redis
   # Redis connection URI
-  uri: {{ get_env(name="REDIS_URL", default="redis://127.0.0.1") }}
+  uri: { { get_env(name="REDIS_URL", default="redis://127.0.0.1") } }
   # Dangerously flush all data in Redis on startup. dangerous operation, make sure that you using this flag only on dev environments or test mode
   dangerously_flush: false
 
@@ -67,17 +66,23 @@ mailer:
 # Database Configuration
 database:
   # Database connection URI
-  uri: {{ get_env(name="DATABASE_URL", default="postgres://loco:loco@localhost:5432/the-handler_test") }}
+  uri:
+    {
+      {
+        get_env(name="DATABASE_URL",
+        default="postgres://loco:loco@localhost:5432/the-handler_test"),
+      },
+    }
   # When enabled, the sql query will be logged.
   enable_logging: false
   # Set the timeout duration when acquiring a connection.
-  connect_timeout: {{ get_env(name="DB_CONNECT_TIMEOUT", default="500") }}
+  connect_timeout: { { get_env(name="DB_CONNECT_TIMEOUT", default="500") } }
   # Set the idle duration before closing a connection.
-  idle_timeout: {{ get_env(name="DB_IDLE_TIMEOUT", default="500") }}
+  idle_timeout: { { get_env(name="DB_IDLE_TIMEOUT", default="500") } }
   # Minimum number of connections for a pool.
-  min_connections: {{ get_env(name="DB_MIN_CONNECTIONS", default="1") }}
+  min_connections: { { get_env(name="DB_MIN_CONNECTIONS", default="1") } }
   # Maximum number of connections for a pool.
-  max_connections: {{ get_env(name="DB_MAX_CONNECTIONS", default="1") }}
+  max_connections: { { get_env(name="DB_MAX_CONNECTIONS", default="1") } }
   # Run migration up when application loaded
   auto_migrate: true
   # Truncate database when application loaded. This is a dangerous operation, make sure that you using this flag only on dev environments or test mode
@@ -93,3 +98,17 @@ auth:
     secret: 8OckHiv1Q0gdP3R5bvhN
     # Token expiration time in seconds
     expiration: 604800 # 7 days
+
+settings:
+  google:
+    client_id: "{{ get_env(name='GOOGLE_CLIENT_ID', default='') }}"
+    client_secret: "{{ get_env(name='GOOGLE_CLIENT_SECRET', default='') }}"
+    redirect_uri: "http://localhost:5173"
+  encryption:
+    key_path: "dev_secret.key"
+  linkedin:
+    webdriver_url: "{{ get_env(name='WEBDRIVER_URL', default='http://localhost:63087') }}"
+    li_at: "{{ get_env(name='LI_AT', default='AQEDATK6330EIqVLAAABnEK--AYAAAGdFv7G300AHnyJz7xXZZsjdXKiipy_2j0MJPFOMlErwA3RvIgcvLqQbE_X_n5ZMp1wAPxD4mhD1rMNlXD5VE0KGKs97R1wudCdZVCXZz1QGuXt1xmXaZR2kNNP') }}"
+    jsessionid: "{{ get_env(name='JSESSIONID', default='ajax:5241677388781229577') }}"
+    pagination_size: 10
+    pagination_max_pages: 40

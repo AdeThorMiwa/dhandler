@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 pub struct Settings {
     pub google: GoogleSettings,
     pub encryption: EncryptionSettings,
+    pub linkedin: LinkedInSettings,
 }
 
 #[derive(Serialize, Deserialize, Default, Debug, Clone)]
@@ -16,4 +17,13 @@ pub struct GoogleSettings {
 #[derive(Serialize, Deserialize, Default, Debug, Clone)]
 pub struct EncryptionSettings {
     pub key_path: String,
+}
+
+#[derive(Serialize, Deserialize, Default, Debug, Clone)]
+pub struct LinkedInSettings {
+    pub webdriver_url: String,
+    pub li_at: Option<String>,
+    pub jsessionid: Option<String>,
+    pub pagination_size: usize,
+    pub pagination_max_pages: usize,
 }

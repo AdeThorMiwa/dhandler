@@ -2,5 +2,7 @@
 
 pub use super::google_auth_users::Entity as GoogleAuthUsers;
 pub use super::knowledge_bases::Entity as KnowledgeBases;
+pub use super::linkedin_creds::Entity as LinkedinCreds;
+pub use super::linkedin_seen_jobs::Entity as LinkedinSeenJobs;
 pub use super::user_preferences::Entity as UserPreferences;
 pub use super::users::Entity as Users;
