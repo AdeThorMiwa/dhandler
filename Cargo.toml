@@ -44,6 +44,8 @@ bytes = "1.11.1"
 pdfium-render = { version = "0.8.37", features = ["sync"] }
 aes-gcm = "0.10.3"
 base64 = "0.22.1"
+chromiumoxide = "0.9.1"
+anyhow = "1.0.102"
 
 [[bin]]
 name = "the_handler-cli"

@@ -71,29 +71,11 @@ impl EncryptionService {
 
 #[cfg(test)]
 mod tests {
-    use di::ServiceProvider;
-    use loco_rs::{config::Config, environment::Environment};
-    use sea_orm::DatabaseConnection;
-    use std::sync::Arc;
-
-    use crate::{
-        services::encryption::EncryptionService,
-        utils::app::{create_di_provider, DIContext},
-    };
-
-    fn setup() -> ServiceProvider {
-        let config = Config::new(&Environment::Development).unwrap();
-        let ctx = DIContext {
-            db: Arc::new(DatabaseConnection::Disconnected),
-            config: Arc::new(config),
-        };
-
-        create_di_provider(&ctx)
-    }
+    use crate::{services::encryption::EncryptionService, utils::testing};
 
     #[tokio::test]
     async fn test_encrypt() {
-        let provider = setup();
+        let provider = testing::setup().await.expect("failed to setup provider");
         let service = provider.get::<EncryptionService>().unwrap();
         let result = service.encrypt("secret").await;
         assert!(result.is_ok());
@@ -101,7 +83,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_decrypt() {
-        let provider = setup();
+        let provider = testing::setup().await.expect("failed to setup provider");
         let service = provider.get::<EncryptionService>().unwrap();
         let encrypted = service.encrypt("secret").await.unwrap();
         let result = service.decrypt(&encrypted).await;
