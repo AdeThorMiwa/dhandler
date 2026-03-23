@@ -44,6 +44,9 @@ bytes = "1.11.1"
 pdfium-render = { version = "0.8.37", features = ["sync"] }
 aes-gcm = "0.10.3"
 base64 = "0.22.1"
+chromiumoxide = { path = "../../Forks/chromiumoxide"}
+anyhow = "1.0.102"
+rig-core = "0.33.0"
 
 [[bin]]
 name = "the_handler-cli"

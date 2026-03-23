@@ -1,12 +1,18 @@
 use di::{singleton_as_self, Injectable, ServiceCollection, ServiceProvider};
+use loco_rs::app::Hooks;
+use loco_rs::boot::create_context;
 use loco_rs::config::Config;
+use loco_rs::environment::Environment;
 use loco_rs::prelude::*;
 use std::any::type_name;
 use std::sync::Arc;
 
+use crate::app::App;
 use crate::libs::google::auth::GoogleAuthClient;
 use crate::models::users::User;
 use crate::services::auth::AuthService;
+use crate::services::directory::linkedin::LinkedinJobDirectory;
+use crate::services::directory::service::JobDirectoryService;
 use crate::services::encryption::EncryptionService;
 use crate::services::google_auth::GoogleAuthService;
 use crate::services::knowledge_base::KnowledgeBaseService;
@@ -40,9 +46,10 @@ pub async fn get_authenticated_user(auth: &auth::JWT, ctx: &AppContext) -> Resul
     user_service.get_user_by_pid(&pid).await
 }
 
-pub struct DIContext {
-    pub db: Arc<DatabaseConnection>,
-    pub config: Arc<Config>,
+pub async fn get_context_for_env(env: &Environment) -> loco_rs::Result<AppContext> {
+    let config = App::load_config(env).await?;
+    let ctx = create_context::<App>(env, config).await?;
+    Ok(ctx)
 }
 
 /// Creates a dependency injection provider.
@@ -50,9 +57,9 @@ pub struct DIContext {
 /// # Panics
 /// Panics if the provider cannot be built.
 #[must_use]
-pub fn create_di_provider(ctx: &DIContext) -> ServiceProvider {
-    let db = ctx.db.clone();
-    let config = ctx.config.clone();
+pub fn create_di_provider(ctx: &AppContext) -> ServiceProvider {
+    let db = Arc::new(ctx.db.clone());
+    let config = Arc::new(ctx.config.clone());
     let settings =
         serde_json::from_value::<Settings>(ctx.config.settings.clone().unwrap()).unwrap();
 
@@ -63,10 +70,12 @@ pub fn create_di_provider(ctx: &DIContext) -> ServiceProvider {
         .add(GoogleAuthClient::singleton())
         .add(GoogleAuthService::singleton())
         .add(EncryptionService::singleton())
+        .add(LinkedinJobDirectory::transient())
         .add(UserPreferenceService::singleton())
         .add(UserService::singleton())
         .add(AuthService::singleton())
         .add(KnowledgeBaseService::singleton())
+        .add(JobDirectoryService::singleton())
         .build_provider()
         .unwrap()
 }

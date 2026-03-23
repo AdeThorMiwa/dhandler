@@ -21,3 +21,5 @@ target/
 
 .env
 *.key
+*.pdf
+*.test.md

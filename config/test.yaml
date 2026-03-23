@@ -67,7 +67,7 @@ mailer:
 # Database Configuration
 database:
   # Database connection URI
-  uri: {{ get_env(name="DATABASE_URL", default="postgres://loco:loco@localhost:5432/the-handler_test") }}
+  uri: {{ get_env(name="DATABASE_URL", default="postgres://postgres:postgres@localhost:5432/the-handler_test") }}
   # When enabled, the sql query will be logged.
   enable_logging: false
   # Set the timeout duration when acquiring a connection.
@@ -93,3 +93,11 @@ auth:
     secret: 8OckHiv1Q0gdP3R5bvhN
     # Token expiration time in seconds
     expiration: 604800 # 7 days
+
+settings:
+   google:
+     client_id: "{{ get_env(name='GOOGLE_CLIENT_ID', default='') }}"
+     client_secret: "{{ get_env(name='GOOGLE_CLIENT_SECRET', default='') }}"
+     redirect_uri: "http://localhost:5173"
+   encryption:
+     key_path: "dev_secret.key"
