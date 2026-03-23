@@ -66,57 +66,59 @@ mod tests {
     use uuid::Uuid;
 
     use crate::{
-        libs::browser::EnvironmentOrchestrator,
+        libs::{agents::SimpleAgent, browser::EnvironmentOrchestrator},
         services::directory::{
-            linkedin::LinkedinJobDirectory, Answer, ApplyRequest, FetchJobFilters, FetchJobRequest,
-            Modality, Question, QuestionHandler,
+            linkedin::LinkedinJobDirectory, Answer, ApplyRequest, ExperienceLevel, FetchJobFilters,
+            FetchJobRequest, JobEntry, Modality, Money, Question, QuestionHandler, Salary,
         },
         utils::testing,
     };
 
-    fn create_question_handler() -> Box<dyn QuestionHandler> {
-        #[derive(Debug)]
-        struct Handler {}
+    #[async_trait]
+    impl QuestionHandler for SimpleAgent {
+        async fn answer(&self, question: &Question) -> anyhow::Result<Answer> {
+            println!("answering question: {question:?}");
+            let question_json = serde_json::to_string(question).unwrap();
+            let system_prompt = self.build_system_prompt(self.get_context());
+            let answer = self.ask(&question_json, Some(&system_prompt)).await?;
+            println!("answer to question: {answer:?}");
+            let answer = match serde_json::from_str::<Answer>(&answer) {
+                Ok(a) => {
+                    if let Answer::Resume = &a {
+                        use base64::{engine::general_purpose::STANDARD, Engine};
+                        let mut path = std::env::current_dir().unwrap();
+                        path.push("resume.pdf");
+                        println!("path: {:?}", path);
+                        let bytes = std::fs::read(path.clone())?;
+                        let base64 = STANDARD.encode(&bytes);
+                        let filename = path
+                            .file_name()
+                            .and_then(|n| n.to_str())
+                            .unwrap_or("file")
+                            .to_string();
 
-        #[async_trait]
-        impl QuestionHandler for Handler {
-            async fn answer(&self, question: &Question) -> anyhow::Result<Answer> {
-                let answer = if question.label == "Email address" {
-                    Answer::Dropdown("adethormiwa1@gmail.com".to_string())
-                } else if question.label == "Phone country code" {
-                    let o = question
-                        .options
-                        .iter()
-                        .find(|o| o.text.contains("234"))
-                        .unwrap();
-                    Answer::Dropdown(o.value.clone())
-                } else if question.label == "Mobile phone number" {
-                    Answer::Text("8000660000".to_string())
-                } else if question.label.contains("Upload resume button") {
-                    use base64::{engine::general_purpose::STANDARD, Engine};
-                    let mut path = std::env::current_dir().unwrap();
-                    path.push("resume.pdf");
-                    println!("path: {:?}", path);
-                    let bytes = std::fs::read(path.clone())?;
-                    let filename = path
-                        .file_name()
-                        .and_then(|n| n.to_str())
-                        .unwrap_or("file")
-                        .to_string();
-
-                    Answer::FileUpload {
-                        filename,
-                        base64: STANDARD.encode(&bytes),
+                        Answer::FileUpload { filename, base64 }
+                    } else {
+                        a
                     }
-                } else {
+                }
+                Err(e) => {
+                    println!("invalid answer: {e}");
                     Answer::Skip
-                };
+                }
+            };
 
-                Ok(answer)
-            }
+            Ok(answer)
         }
+    }
 
-        Box::new(Handler {})
+    fn create_question_handler(job: &JobEntry) -> Box<dyn QuestionHandler> {
+        let context = format!(
+            "Bio: \n {}\n\nAbout the job: \n{}\n\nGeneral information:\nIf job is remote, then i'm legally authorized to work in the country.",
+            include_str!("ctx.test.md"),
+            job.to_ai_readable_string()
+        );
+        Box::new(SimpleAgent::new(&context))
     }
 
     #[tokio::test]
@@ -171,9 +173,64 @@ mod tests {
             .await
             .expect("failed to start orchestrator");
 
+        let job_entry = JobEntry {
+            id: "4389085055".to_string(),
+            title: "Enterprise Architect - Agentic AI".to_string(),
+            company: "Methodius IT Recruitment".to_string(),
+            location: "Dublin, County Dublin, Ireland".to_string(),
+            url: "https://www.linkedin.com/jobs/view/4389085055/".to_string(),
+            description: "Barden is partnering with a global tech company in their search for an Agentic AI Enterprise Architect. This is a great opportunity for someone to help define the architecture for next-generation intelligent systems.
+
+
+
+            ABOUT THE ROLE:
+
+            Define the end-to-end architecture for the organisation’s agentic platform: infrastructure, patterns, and contracts enabling autonomous capabilities.
+            Design agent orchestration, multi-agent coordination, graduated autonomy models, and guardrails for regulated environments.
+            Establish observability, evaluation, and trust frameworks to ensure safe, auditable, and explainable agent behaviour.
+            Architect a unified API and platform layer for agentic consumption, including tool exposure, context management, versioning, and multi-tenancy.
+            Define cross-product composability patterns, resource/tool taxonomy, and integration standards for autonomous agents.
+            Provide architectural guidance for ML/statistical models powering analytics products.
+            Define model lifecycle, integration with agentic workflows, and alignment with platform engineering standards.
+            Advise on build vs. buy decisions and ensure scalable, maintainable ML infrastructure.
+
+
+            ABOUT YOU:
+
+            10+ years of software architecture/engineering experience, with 2+ years in AI/ML production systems.
+            Hands-on experience designing agentic or AI-orchestrated systems with multi-step reasoning, tool use, and autonomous workflows.
+            Proven track record defining API strategies for complex, multi-product platforms.
+            Production experience with LLM-based systems, orchestration frameworks, evaluation, guardrails, and cost optimisation.
+
+
+            OTHER DETAILS:
+
+            Our client is based in Cork city centre. For talent outside Cork, occasional travel to the office (2-3 times per month) is required.
+            Permanent role: competitive salary plus benefits.
+
+
+            PLEASE ONLY APPLY IF YOU ARE BASED IN IRELAND AND CAN TRAVEL TO CORK 1-3 TIMES PER MONTH".to_string(),
+            seniority_level: Some(ExperienceLevel::SeniorLevel),
+            industry: Some("Staffing and Recruiting".to_string()),
+            posted_at: Some("2 weeks ago".to_string()),
+            salary: Some(Salary {
+                minimum: Money {
+                    value: 500.0,
+                    currency: "EUR".to_string(),
+                },
+                maximum: Some(Money {
+                    value: 700.0,
+                    currency: "EUR".to_string(),
+                }),
+            }),
+            recruiter_name: "Cian Crosse".to_string(),
+            modalities: vec![Modality::Remote],
+            source: "linkedin".to_string(),
+        };
+
         let request = ApplyRequest {
-            job_id: "4387910766".to_string(),
-            question_handler: create_question_handler(),
+            job_id: job_entry.id.to_string(),
+            question_handler: create_question_handler(&job_entry),
         };
 
         let result = service

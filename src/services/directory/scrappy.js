@@ -26,7 +26,7 @@ class Scrappy {
       case CMD.ANSWER_QUESTION:
         return this.#answerQuestion(payload);
       case CMD.NEXT_PAGE:
-        return this.#nextPage();
+        return await this.#nextPage();
       default:
         console.log("[scrappy] unknown command");
     }
@@ -53,7 +53,7 @@ class Scrappy {
       const timer = setTimeout(() => {
         observer.disconnect();
         reject(new Error("Timed out waiting for modal content"));
-      }, 10000);
+      }, 20000);
 
       const observer = new MutationObserver(() => {
         if (shadowRoot.querySelector(".fb-dash-form-element")) {
@@ -149,7 +149,7 @@ class Scrappy {
 
     let id = this.get_next_id();
     this.#answerHandles.set(id, (answer) => {
-      if (answer.kind === "skip") return;
+      if (["skip", "missing_required_info"].includes(answer.kind)) return;
 
       if (answer.kind !== "text" && answer.kind !== "number") {
         return;
@@ -190,7 +190,7 @@ class Scrappy {
 
     let id = this.get_next_id();
     this.#answerHandles.set(id, (answer) => {
-      if (answer.kind === "skip") return;
+      if (["skip", "missing_required_info"].includes(answer.kind)) return;
 
       if (answer.kind !== "dropdown") {
         return;
@@ -222,7 +222,7 @@ class Scrappy {
 
     let id = this.get_next_id();
     this.#answerHandles.set(id, (answer) => {
-      if (answer.kind === "skip") return;
+      if (["skip", "missing_required_info"].includes(answer.kind)) return;
 
       if (answer.kind !== "text") {
         return;
@@ -250,6 +250,7 @@ class Scrappy {
     });
 
     return {
+      id,
       kind: "text",
       label,
       required,
@@ -281,7 +282,7 @@ class Scrappy {
 
     let id = this.get_next_id();
     this.#answerHandles.set(id, (answer) => {
-      if (answer.kind === "skip") return;
+      if (["skip", "missing_required_info"].includes(answer.kind)) return;
 
       if (answer.kind !== "file_upload") {
         return;
@@ -324,42 +325,46 @@ class Scrappy {
 
   #extractRadioQuestion(block, radios) {
     const label = this.#labelText(block);
-    const options = radios.map((r) => r.getAttribute("aria-label") ?? r.value);
+    const options = radios.map((r) => ({
+      text: r.getAttribute("aria-label") ?? r.value,
+      value: r.value,
+    }));
     const checked = radios.find((r) => r.checked);
     const currentValue = checked?.value ?? null;
     const isYesNo =
       options.length === 2 &&
-      options.some((o) => o.toLowerCase().includes("yes")) &&
-      options.some((o) => o.toLowerCase().includes("no"));
+      options.some((o) => o.value.toLowerCase().includes("yes")) &&
+      options.some((o) => o.value.toLowerCase().includes("no"));
+    const required = !!block.querySelector("input[aria-required='true']");
 
     let id = this.get_next_id();
     this.#answerHandles.set(id, (answer) => {
-      if (answer.kind === "skip") return;
+      if (["skip", "missing_required_info"].includes(answer.kind)) return;
 
-      if (answer.kind !== "yes_no" || answer.kind !== "single_choice") {
+      if (answer.kind !== "yes_no" && answer.kind !== "single_choice") {
         return;
       }
 
       const value =
         answer.kind === "yes_no" ? (answer.value ? "Yes" : "No") : answer.value;
 
-      const target = radios.find(
-        (r) => (r.getAttribute("aria-label") ?? r.value) === value,
+      let labels = Array.from(block.querySelectorAll("label"));
+
+      const target = labels.find(
+        (l) =>
+          l
+            .getAttribute("data-test-text-selectable-option__label")
+            .toLowerCase() == value.toLowerCase(),
       );
 
-      if (target) {
-        target.focus();
-        target.checked = true;
-        target.dispatchEvent(new Event("change", { bubbles: true }));
-        target.dispatchEvent(new Event("click", { bubbles: true }));
-        target.blur();
-      }
+      target?.click();
     });
 
     return {
+      id,
       kind: isYesNo ? "yes_no" : "single_choice",
       label,
-      required: false,
+      required,
       hint: null,
       current_value: currentValue,
       options,
@@ -374,7 +379,7 @@ class Scrappy {
 
     let id = this.get_next_id();
     this.#answerHandles.set(id, (answer) => {
-      if (answer.kind === "skip") return;
+      if (["skip", "missing_required_info"].includes(answer.kind)) return;
 
       if (answer.kind !== "multi_choice") {
         return;
@@ -397,6 +402,7 @@ class Scrappy {
     });
 
     return {
+      id,
       kind: "multi_choice",
       label,
       required: false,
@@ -428,14 +434,16 @@ class Scrappy {
     handler(payload.answer);
   }
 
-  #nextPage() {
+  async #nextPage() {
     const interopOutlet = document.querySelector("#interop-outlet");
-    let nextButton = interopOutlet.shadowRoot.querySelector(
+    const shadowRoot = interopOutlet.shadowRoot;
+
+    let nextButton = shadowRoot.querySelector(
       "button[aria-label='Continue to next step']",
     );
 
     if (!nextButton) {
-      nextButton = interopOutlet.shadowRoot.querySelector(
+      nextButton = shadowRoot.querySelector(
         "button[aria-label='Review your application']",
       );
     }
@@ -444,7 +452,44 @@ class Scrappy {
       return false;
     }
 
+    const progressEl = shadowRoot.querySelector(
+      ".artdeco-completeness-meter-linear__progress-element",
+    );
+    const currentProgress = progressEl
+      ? parseInt(progressEl.getAttribute("aria-valuenow") ?? "0")
+      : 0;
+
     nextButton.click();
+
+    await new Promise((resolve, reject) => {
+      const timer = setTimeout(() => {
+        observer.disconnect();
+        reject(new Error("Timed out waiting for next page"));
+      }, 10000);
+
+      const observer = new MutationObserver(() => {
+        const newProgressEl = shadowRoot.querySelector(
+          ".artdeco-completeness-meter-linear__progress-element",
+        );
+        const newProgress = newProgressEl
+          ? parseInt(newProgressEl.getAttribute("aria-valuenow") ?? "0")
+          : 0;
+
+        if (newProgress > currentProgress) {
+          clearTimeout(timer);
+          observer.disconnect();
+          resolve();
+        }
+      });
+
+      observer.observe(shadowRoot, {
+        childList: true,
+        subtree: true,
+        attributes: true,
+        attributeFilter: ["aria-valuenow", "value"],
+      });
+    });
+
     return true;
   }
 

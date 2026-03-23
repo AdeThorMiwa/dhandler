@@ -1,3 +1,4 @@
+pub mod agents;
 pub mod browser;
 pub mod google;
 pub mod markdown;

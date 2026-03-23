@@ -1,6 +1,6 @@
 use crate::services::directory::{
-    ApplyRequest, ApplyResult, ExperienceLevel, FetchJobFilters, FetchJobRequest, JobDirectory,
-    JobEntry, Modality, Money, Question, Salary,
+    Answer, ApplyRequest, ApplyResult, ExperienceLevel, FetchJobFilters, FetchJobRequest,
+    JobDirectory, JobEntry, Modality, Money, Question, Salary,
 };
 use chromiumoxide::{Browser, Element, Page};
 use chrono::Utc;
@@ -483,6 +483,8 @@ impl JobDirectory for LinkedinJobDirectory {
             io::Error::other(e)
         })?;
 
+        let mut missing_required_infos = Vec::new();
+
         'page_loop: loop {
             page.evaluate(format!("window.scrappy.executeCommand('INIT_ITERATOR')"))
                 .await
@@ -503,11 +505,15 @@ impl JobDirectory for LinkedinJobDirectory {
                 println!("got here");
 
                 let question = match result.value() {
-                    Some(q) => serde_json::from_value::<Question>(q.clone()).unwrap(),
+                    Some(q) => match serde_json::from_value::<Question>(q.clone()) {
+                        Ok(q) => q,
+                        Err(e) => {
+                            println!("Error parsing question: {e} {q:?}");
+                            panic!("failed")
+                        }
+                    },
                     None => break 'question_loop,
                 };
-
-                println!("question: {:?}", question);
 
                 let answer = request
                     .question_handler
@@ -515,7 +521,10 @@ impl JobDirectory for LinkedinJobDirectory {
                     .await
                     .map_err(io::Error::other)?;
 
-                println!("answer: {:?}", answer);
+                if let Answer::MissingRequiredInfo = &answer {
+                    missing_required_infos.push(question.clone());
+                    continue;
+                }
 
                 page
                     .evaluate(format!(
@@ -530,6 +539,8 @@ impl JobDirectory for LinkedinJobDirectory {
                     })?;
             }
 
+            tokio::time::sleep(Duration::from_secs(1)).await;
+
             let result = page
                 .evaluate(format!("window.scrappy.executeCommand('NEXT_PAGE')",))
                 .await
@@ -538,17 +549,21 @@ impl JobDirectory for LinkedinJobDirectory {
                     io::Error::other(e)
                 })?;
 
-            println!("checking if next page");
+            println!("checking if next page {:?}", result.clone().value());
+
+            tokio::time::sleep(Duration::from_secs(1)).await;
 
             let has_next_page = match result.value() {
                 Some(v) => serde_json::from_value::<bool>(v.clone()).unwrap(),
-                None => break 'page_loop,
+                None => false,
             };
 
             if !has_next_page {
                 break 'page_loop;
             }
         }
+
+        println!("missing_infos: {:?}", missing_required_infos);
 
         // @todo screenshot review application page and click on apply button
 
