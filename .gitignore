@@ -21,3 +21,4 @@ target/
 
 .env
 *.key
+*.pdf

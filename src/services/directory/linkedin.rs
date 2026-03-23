@@ -1,12 +1,14 @@
 use crate::services::directory::{
-    ExperienceLevel, FetchJobFilters, FetchJobRequest, JobDirectory, JobEntry, Modality, Money,
-    Salary,
+    ApplyRequest, ApplyResult, ExperienceLevel, FetchJobFilters, FetchJobRequest, JobDirectory,
+    JobEntry, Modality, Money, Question, Salary,
 };
 use chromiumoxide::{Browser, Element, Page};
+use chrono::Utc;
 use di::injectable;
 use loco_rs::prelude::*;
 use std::{io, time::Duration};
 
+#[derive(Debug)]
 pub struct JobDetails {
     id: String,
     url: String,
@@ -148,10 +150,6 @@ impl LinkedinJobDirectory {
             .map(|s| s.trim().to_string())
     }
 
-    async fn get_attr(el: &Element, name: &str) -> Option<String> {
-        el.attribute(name).await.ok()?.map(|s| s.trim().to_string())
-    }
-
     fn parse_modality(s: &str) -> Option<Modality> {
         let lower = s.to_lowercase();
         if lower.contains("remote") {
@@ -278,9 +276,22 @@ impl LinkedinJobDirectory {
     }
 
     async fn scrape_job(card: &Element, page: &Page) -> anyhow::Result<JobDetails> {
-        let id = Self::get_attr(&card, "data-job-id")
-            .await
+        let href = card
+            .find_element("a.job-card-container__link")
+            .await?
+            .attribute("href")
+            .await?
             .unwrap_or_default();
+
+        // "/jobs/view/4376808572/?..." → "4376808572"
+        let id = href
+            .trim_start_matches('/')
+            .split('/')
+            .nth(2) // jobs / view / {id}
+            .and_then(|seg| seg.split('?').next()) // strip query string
+            .unwrap_or_default()
+            .to_string();
+
         let url = format!("https://www.linkedin.com/jobs/view/{}/", id);
 
         let title = Self::get_text(page, ".job-details-jobs-unified-top-card__job-title")
@@ -428,7 +439,7 @@ impl JobDirectory for LinkedinJobDirectory {
                 .await
             {
                 if let None = next_button.attribute("disabled").await.unwrap_or(None) {
-                    println!("➡️  Going to next page...");
+                    println!("Going to next page...");
                     next_button.click().await.map_err(io::Error::other)?;
 
                     // Wait for new job cards to load
@@ -442,5 +453,108 @@ impl JobDirectory for LinkedinJobDirectory {
         }
 
         Ok(jobs)
+    }
+
+    async fn apply_to_job(
+        &self,
+        request: ApplyRequest,
+        browser: &mut Browser,
+    ) -> Result<ApplyResult> {
+        // open application page
+        let application_page = format!("https://www.linkedin.com/jobs/view/{}", request.job_id);
+        let page = browser
+            .new_page(&application_page)
+            .await
+            .map_err(io::Error::other)?;
+
+        let script = include_str!("scrappy.js");
+        page.evaluate(script).await.map_err(|e| {
+            println!("Error: {e}");
+            io::Error::other(e)
+        })?;
+
+        page.evaluate(format!(
+            "window.scrappy.executeCommand('OPEN_APPLICATION_MODAL', {{ jobId: '{}' }})",
+            request.job_id
+        ))
+        .await
+        .map_err(|e| {
+            println!("Error: {e}");
+            io::Error::other(e)
+        })?;
+
+        'page_loop: loop {
+            page.evaluate(format!("window.scrappy.executeCommand('INIT_ITERATOR')"))
+                .await
+                .map_err(|e| {
+                    println!("Error: {e}");
+                    io::Error::other(e)
+                })?;
+
+            'question_loop: loop {
+                let result = page
+                    .evaluate(format!("window.scrappy.executeCommand('NEXT_QUESTION')",))
+                    .await
+                    .map_err(|e| {
+                        println!("Error: {e}");
+                        io::Error::other(e)
+                    })?;
+
+                println!("got here");
+
+                let question = match result.value() {
+                    Some(q) => serde_json::from_value::<Question>(q.clone()).unwrap(),
+                    None => break 'question_loop,
+                };
+
+                println!("question: {:?}", question);
+
+                let answer = request
+                    .question_handler
+                    .answer(&question)
+                    .await
+                    .map_err(io::Error::other)?;
+
+                println!("answer: {:?}", answer);
+
+                page
+                    .evaluate(format!(
+                        "window.scrappy.executeCommand('ANSWER_QUESTION', {{ handle: '{}', answer: {} }})",
+                        question.id,
+                        serde_json::json!(answer)
+                    ))
+                    .await
+                    .map_err(|e| {
+                        println!("Error: {e}");
+                        io::Error::other(e)
+                    })?;
+            }
+
+            let result = page
+                .evaluate(format!("window.scrappy.executeCommand('NEXT_PAGE')",))
+                .await
+                .map_err(|e| {
+                    println!("Error: {e}");
+                    io::Error::other(e)
+                })?;
+
+            println!("checking if next page");
+
+            let has_next_page = match result.value() {
+                Some(v) => serde_json::from_value::<bool>(v.clone()).unwrap(),
+                None => break 'page_loop,
+            };
+
+            if !has_next_page {
+                break 'page_loop;
+            }
+        }
+
+        // @todo screenshot review application page and click on apply button
+
+        Ok(ApplyResult::Applied {
+            job_id: "".to_string(),
+            applied_at: Utc::now(),
+        })
     }
 }
