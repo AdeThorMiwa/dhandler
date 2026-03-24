@@ -15,11 +15,23 @@ pub struct Money {
     currency: String,
 }
 
+impl Money {
+    pub fn new(value: f64, currency: String) -> Self {
+        Self { value, currency }
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Salary {
     minimum: Money,
     #[allow(unused)]
     maximum: Option<Money>,
+}
+
+impl Salary {
+    pub fn new(minimum: Money, maximum: Option<Money>) -> Self {
+        Self { minimum, maximum }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
